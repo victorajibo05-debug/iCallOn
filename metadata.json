@@ -1,0 +1,6 @@
+{
+  "name": "Call on",
+  "description": "A minimalist real-time multiplayer word game of Name, Animal, Place, and Thing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
