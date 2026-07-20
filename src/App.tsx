@@ -400,10 +400,10 @@ export default function App() {
             >
               <div className="text-center flex flex-col gap-2">
                 <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
-                  Call ON.
+                  iCallOn
                 </h1>
                 <p className="text-xs text-slate-400 max-w-xs mx-auto font-mono tracking-wide">
-                  The classic Name, Animal, Place, Thing party game. Take turns calling a letter and speed writing starting words.
+                  Name, Animal, Place, Thinggame. Take turns calling a letter and speed writing starting words.
                 </p>
               </div>
 
