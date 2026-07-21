@@ -313,9 +313,9 @@ export default function App() {
           </div>
           <div className="flex flex-col">
             <span className="font-sans font-bold text-lg tracking-tight text-white">
-              Call on
+              iCallOn.
             </span>
-            <span className="text-[10px] font-mono text-slate-500 tracking-widest uppercase">
+            <span className="text-[10px] font-Helvetica text-slate-500 tracking-tight uppercase">
               Multiplayer
             </span>
           </div>
@@ -380,17 +380,17 @@ export default function App() {
               className="w-full max-w-md bg-black/60 backdrop-blur-md border border-[#1e293b]/80 shadow-2xl rounded-2xl p-6 md:p-8 flex flex-col gap-6"
             >
               <div className="text-center flex flex-col gap-2">
-                <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
-                  Call ON.
+                <h1 className="text-3xl font-extrabold tracking-tight text-white bg-clip-text text-transparent">
+                  iCallOn.
                 </h1>
-                <p className="text-xs text-slate-400 max-w-xs mx-auto font-mono tracking-wide">
+                <p className="text-xs text-slate-400 max-w-xs mx-auto font-Helvetica tracking-tight">
                   The classic Name, Animal, Place, Thing party game. Take turns calling a letter and speed writing starting words.
                 </p>
               </div>
 
               {/* Nickname selection */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-mono uppercase tracking-wider text-slate-400 px-1">
+                <label className="text-xs font-Helvetica text-white uppercase tracking-tight text-slate-400 px-1">
                   Choose Your Nickname
                 </label>
                 <div className="relative">
