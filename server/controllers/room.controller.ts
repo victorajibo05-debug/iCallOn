@@ -88,32 +88,15 @@ export class RoomController {
   }
 
   // POST /api/rooms/:roomId/answers
-  public submitAnswers(req: Request, res: Response): any {
+  public async submitAnswers(req: Request, res: Response): Promise<any> {
     try {
       const { roomId } = req.params;
       const { playerId, answers, submit } = req.body;
 
-      const { success, transitioned } = roomService.submitAnswers(roomId, playerId, answers, submit);
+      const { success, transitioned } = await roomService.submitAnswers(roomId, playerId, answers, submit);
       return res.json({ success, transitioned });
     } catch (err: any) {
       return res.status(400).json({ error: err.message || "Failed to submit answers" });
-    }
-  }
-
-  // POST /api/rooms/:roomId/veto
-  public toggleVeto(req: Request, res: Response): any {
-    try {
-      const { roomId } = req.params;
-      const { playerId, targetPlayerId, field } = req.body;
-
-      if (field !== "name" && field !== "animal" && field !== "place" && field !== "thing") {
-        return res.status(400).json({ error: "Invalid category field" });
-      }
-
-      roomService.toggleVeto(roomId, playerId, targetPlayerId, field);
-      return res.json({ success: true });
-    } catch (err: any) {
-      return res.status(400).json({ error: err.message || "Failed to toggle veto" });
     }
   }
 

@@ -1,5 +1,18 @@
 import { RoomState, Player, RoundAnswers } from "../../src/types";
 import express from "express";
+import { gradeRound, PlayerAnswerInput } from "./ai.services";
+
+function emptyAnswers(): RoundAnswers {
+  return {
+    name: "",
+    animal: "",
+    place: "",
+    thing: "",
+    submitted: false,
+    scores: { name: 0, animal: 0, place: 0, thing: 0 },
+    aiVerdicts: null,
+  };
+}
 
 export class RoomService {
   private rooms = new Map<string, RoomState>();
@@ -237,15 +250,7 @@ export class RoomService {
     room.timerEndsAt = Date.now() + 35000;
 
     room.players.forEach((p) => {
-      room.answers[p.id] = {
-        name: "",
-        animal: "",
-        place: "",
-        thing: "",
-        submitted: false,
-        scores: { name: 0, animal: 0, place: 0, thing: 0 },
-        vetos: { name: [], animal: [], place: [], thing: [] },
-      };
+      room.answers[p.id] = emptyAnswers();
     });
 
     if (this.writingTimeouts.has(upperCode)) {
@@ -253,15 +258,19 @@ export class RoomService {
     }
 
     const timeoutId = setTimeout(() => {
-      this.transitionToReview(upperCode);
+      this.transitionToReview(upperCode).catch((err) => {
+        console.error(`Grading failed for room ${upperCode}:`, err);
+      });
     }, 35500);
 
     this.writingTimeouts.set(upperCode, timeoutId);
     this.broadcast(upperCode);
   }
 
-  // Transition from writing to review state
-  public transitionToReview(roomId: string): void {
+  // Transition from writing to review state. The AI referee grades every answer in one
+  // batch call — there is a brief "grading" status in between so clients can show a
+  // loading state instead of a frozen writing screen while the request is in flight.
+  public async transitionToReview(roomId: string): Promise<void> {
     const upperCode = roomId.toUpperCase();
     const room = this.rooms.get(upperCode);
     if (!room || room.status !== "writing") return;
@@ -271,42 +280,50 @@ export class RoomService {
 
     room.players.forEach((p) => {
       if (!room.answers[p.id]) {
-        room.answers[p.id] = {
-          name: "",
-          animal: "",
-          place: "",
-          thing: "",
-          submitted: true,
-          scores: { name: 0, animal: 0, place: 0, thing: 0 },
-          vetos: { name: [], animal: [], place: [], thing: [] },
-        };
-      } else {
-        room.answers[p.id].submitted = true;
+        room.answers[p.id] = emptyAnswers();
       }
-
-      const ans = room.answers[p.id];
-      const fields: Array<"name" | "animal" | "place" | "thing"> = ["name", "animal", "place", "thing"];
-      fields.forEach((field) => {
-        const val = ans[field]?.trim() || "";
-        if (val !== "" && val.toLowerCase().startsWith(room.currentLetter.toLowerCase())) {
-          ans.scores[field] = 10;
-        } else {
-          ans.scores[field] = 0;
-        }
-      });
+      room.answers[p.id].submitted = true;
     });
 
     this.writingTimeouts.delete(upperCode);
     this.broadcast(upperCode);
+
+    const inputs: PlayerAnswerInput[] = room.players.map((p) => {
+      const ans = room.answers[p.id];
+      return { playerId: p.id, name: ans.name, animal: ans.animal, place: ans.place, thing: ans.thing };
+    });
+
+    const graded = await gradeRound(room.currentLetter, inputs);
+
+    // The room may have been deleted or restarted while the AI call was in flight
+    const stillLive = this.rooms.get(upperCode);
+    if (!stillLive || stillLive.status !== "review") return;
+
+    stillLive.players.forEach((p) => {
+      const ans = stillLive.answers[p.id];
+      const verdicts = graded[p.id];
+      if (!ans || !verdicts) return;
+
+      ans.aiVerdicts = verdicts;
+      ans.scores = {
+        name: verdicts.name.valid ? 10 : 0,
+        animal: verdicts.animal.valid ? 10 : 0,
+        place: verdicts.place.valid ? 10 : 0,
+        thing: verdicts.thing.valid ? 10 : 0,
+      };
+    });
+
+    stillLive.status = "review";
+    this.broadcast(upperCode);
   }
 
   // Update or lock in answers
-  public submitAnswers(
+  public async submitAnswers(
     roomId: string,
     playerId: string,
     answers: { name: string; animal: string; place: string; thing: string },
     submit: boolean
-  ): { success: boolean; transitioned: boolean } {
+  ): Promise<{ success: boolean; transitioned: boolean }> {
     const upperCode = roomId.toUpperCase();
     const room = this.rooms.get(upperCode);
     if (!room) throw new Error("Room not found");
@@ -316,15 +333,7 @@ export class RoomService {
     }
 
     if (!room.answers[playerId]) {
-      room.answers[playerId] = {
-        name: "",
-        animal: "",
-        place: "",
-        thing: "",
-        submitted: false,
-        scores: { name: 0, animal: 0, place: 0, thing: 0 },
-        vetos: { name: [], animal: [], place: [], thing: [] },
-      };
+      room.answers[playerId] = emptyAnswers();
     }
 
     const currentAns = room.answers[playerId];
@@ -349,57 +358,13 @@ export class RoomService {
           clearTimeout(this.writingTimeouts.get(upperCode));
           this.writingTimeouts.delete(upperCode);
         }
-        this.transitionToReview(upperCode);
+        await this.transitionToReview(upperCode);
         return { success: true, transitioned: true };
       }
     }
 
     this.broadcast(upperCode);
     return { success: true, transitioned: false };
-  }
-
-  // Toggle opponent answer veto
-  public toggleVeto(
-    roomId: string,
-    playerId: string,
-    targetPlayerId: string,
-    field: "name" | "animal" | "place" | "thing"
-  ): void {
-    const upperCode = roomId.toUpperCase();
-    const room = this.rooms.get(upperCode);
-    if (!room) throw new Error("Room not found");
-
-    if (room.status !== "review") {
-      throw new Error("Not in review phase");
-    }
-
-    const targetAnswer = room.answers[targetPlayerId];
-    if (!targetAnswer) throw new Error("Target player has no answers");
-
-    const vetosList = targetAnswer.vetos[field] || [];
-    const idx = vetosList.indexOf(playerId);
-    if (idx > -1) {
-      vetosList.splice(idx, 1);
-    } else {
-      vetosList.push(playerId);
-    }
-    targetAnswer.vetos[field] = vetosList;
-
-    // Recalculate based on online voting opponents
-    const otherOnlineCount = room.players.filter((p) => p.online && p.id !== targetPlayerId).length;
-    const requiredVetoes = Math.max(1, Math.ceil(otherOnlineCount / 2));
-    const isVetoed = vetosList.length >= requiredVetoes;
-
-    const val = targetAnswer[field]?.trim() || "";
-    const isValidLetter = val !== "" && val.toLowerCase().startsWith(room.currentLetter.toLowerCase());
-
-    if (isVetoed || !isValidLetter) {
-      targetAnswer.scores[field] = 0;
-    } else {
-      targetAnswer.scores[field] = 10;
-    }
-
-    this.broadcast(upperCode);
   }
 
   // Finalize review & advance rounds

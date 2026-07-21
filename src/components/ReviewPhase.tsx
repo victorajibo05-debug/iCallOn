@@ -1,22 +1,16 @@
 import { useState } from "react";
-import { RoomState, Player } from "../types";
-import { motion, AnimatePresence } from "motion/react";
-import { ThumbsDown, Crown, HelpCircle, Check, AlertCircle, RefreshCw } from "lucide-react";
+import { RoomState } from "../types";
+import { motion } from "motion/react";
+import { Check, X, Crown, RefreshCw, Bot } from "lucide-react";
 import { sounds } from "../utils/sound";
 
 interface ReviewPhaseProps {
   room: RoomState;
   playerId: string;
-  onToggleVeto: (targetPlayerId: string, field: "name" | "animal" | "place" | "thing") => void;
   onFinalizeReview: () => void;
 }
 
-export default function ReviewPhase({
-  room,
-  playerId,
-  onToggleVeto,
-  onFinalizeReview,
-}: ReviewPhaseProps) {
+export default function ReviewPhase({ room, playerId, onFinalizeReview }: ReviewPhaseProps) {
   const me = room.players.find((p) => p.id === playerId);
   const isHost = me?.isHost || false;
 
@@ -26,29 +20,6 @@ export default function ReviewPhase({
   );
 
   const categories = ["name", "animal", "place", "thing"] as const;
-
-  const handleVetoClick = (targetPlayerId: string, field: "name" | "animal" | "place" | "thing") => {
-    sounds.veto();
-    onToggleVeto(targetPlayerId, field);
-  };
-
-  // Helper to determine veto status
-  const getFieldVetoInfo = (targetPlayerId: string, field: "name" | "animal" | "place" | "thing") => {
-    const ans = room.answers[targetPlayerId];
-    if (!ans) return { isVetoed: false, count: 0, votedByMe: false };
-
-    const list = ans.vetos[field] || [];
-    const count = list.length;
-    const votedByMe = list.includes(playerId);
-
-    // Number of OTHER online players (excluding the target player themselves)
-    const otherOnlineCount = room.players.filter((p) => p.online && p.id !== targetPlayerId).length;
-    // Veto succeeds if count >= 50% of voting players (min 1)
-    const requiredVetoes = Math.max(1, Math.ceil(otherOnlineCount / 2));
-    const isVetoed = count >= requiredVetoes;
-
-    return { isVetoed, count, votedByMe, requiredVetoes };
-  };
 
   const getPlayerRoundScore = (pId: string) => {
     const ans = room.answers[pId];
@@ -70,7 +41,7 @@ export default function ReviewPhase({
             Round {room.round} Grading
           </span>
           <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            Veto & Scoring Phase
+            <Bot className="w-5 h-5 text-[#3b82f6]" /> AI Referee Results
           </h2>
         </div>
 
@@ -87,10 +58,10 @@ export default function ReviewPhase({
           <div className="w-px h-8 bg-slate-800" />
           <div className="flex flex-col">
             <span className="text-[9px] font-mono uppercase tracking-wider text-slate-500">
-              Veto Rule
+              Grading
             </span>
             <span className="font-mono text-xs text-slate-300 font-medium">
-              Majority of opponents
+              Decided by AI referee
             </span>
           </div>
         </div>
@@ -172,15 +143,8 @@ export default function ReviewPhase({
               <div className="flex flex-col gap-3">
                 {categories.map((cat) => {
                   const val = (ans?.[cat] || "").trim();
-                  const { isVetoed, count, votedByMe, requiredVetoes } = getFieldVetoInfo(
-                    player.id,
-                    cat
-                  );
-
-                  const lowercaseVal = val.toLowerCase();
-                  const startsWithLetter = lowercaseVal.startsWith(
-                    room.currentLetter.toLowerCase()
-                  );
+                  const verdict = ans?.aiVerdicts?.[cat];
+                  const isValid = verdict?.valid ?? false;
 
                   return (
                     <div
@@ -188,11 +152,9 @@ export default function ReviewPhase({
                       className={`flex flex-col p-3 rounded-lg border transition-colors ${
                         !val
                           ? "bg-slate-950/20 border-slate-950"
-                          : isVetoed
-                          ? "bg-rose-950/10 border-rose-900/20"
-                          : startsWithLetter
-                          ? "bg-slate-950/40 border-slate-800"
-                          : "bg-amber-950/10 border-amber-900/20"
+                          : isValid
+                          ? "bg-slate-950/40 border-emerald-900/20"
+                          : "bg-rose-950/10 border-rose-900/20"
                       }`}
                     >
                       <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1">
@@ -200,19 +162,19 @@ export default function ReviewPhase({
 
                         {val && (
                           <span
-                            className={
-                              isVetoed
-                                ? "text-rose-400"
-                                : startsWithLetter
-                                ? "text-emerald-400"
-                                : "text-amber-400"
-                            }
+                            className={`flex items-center gap-1 ${
+                              isValid ? "text-emerald-400" : "text-rose-400"
+                            }`}
                           >
-                            {isVetoed
-                              ? "VETOED (+0)"
-                              : startsWithLetter
-                              ? "VALID (+10)"
-                              : "WRONG LETTER (+0)"}
+                            {isValid ? (
+                              <>
+                                <Check className="w-3 h-3" /> VALID (+10)
+                              </>
+                            ) : (
+                              <>
+                                <X className="w-3 h-3" /> REJECTED (+0)
+                              </>
+                            )}
                           </span>
                         )}
                       </div>
@@ -222,48 +184,20 @@ export default function ReviewPhase({
                           className={`text-sm font-medium break-all ${
                             !val
                               ? "text-slate-700 italic"
-                              : isVetoed
-                              ? "text-rose-400/60 line-through font-mono decoration-2 decoration-rose-500"
-                              : startsWithLetter
+                              : isValid
                               ? "text-slate-100"
-                              : "text-amber-400/80 font-mono"
+                              : "text-rose-400/60 line-through font-mono decoration-2 decoration-rose-500"
                           }`}
                         >
                           {val || "No entry"}
                         </span>
-
-                        {/* Veto Toggle Button */}
-                        {val && !isMe && (
-                          <button
-                            onClick={() => handleVetoClick(player.id, cat)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono border transition-all ${
-                              votedByMe
-                                ? "bg-rose-900/40 border-rose-700 text-rose-300 shadow-md shadow-rose-900/10"
-                                : "bg-black/20 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                            }`}
-                            title="Flag as invalid / incorrect"
-                          >
-                            <ThumbsDown className={`w-3 h-3 ${votedByMe ? "fill-current" : ""}`} />
-                            <span>{count}</span>
-                          </button>
-                        )}
-
-                        {/* If own answer or no entry, just show status */}
-                        {val && isMe && (
-                          <div className="flex items-center text-xs font-mono text-slate-500 gap-1 bg-black/10 px-2 py-1 rounded">
-                            <ThumbsDown className="w-3 h-3" />
-                            <span>{count}</span>
-                          </div>
-                        )}
                       </div>
 
-                      {/* Small visual detail showing who flagged if any */}
-                      {count > 0 && (
+                      {/* AI's reasoning for the verdict */}
+                      {val && verdict?.reason && (
                         <div className="mt-1.5 text-[9px] font-mono text-slate-500 flex items-center gap-1">
-                          <AlertCircle className="w-2.5 h-2.5" />
-                          <span>
-                            {count}/{requiredVetoes} flags needed for veto
-                          </span>
+                          <Bot className="w-2.5 h-2.5" />
+                          <span>{verdict.reason}</span>
                         </div>
                       )}
                     </div>
@@ -279,8 +213,9 @@ export default function ReviewPhase({
       <div className="border-t border-slate-900 pt-5 mt-2 flex flex-col gap-3">
         {isHost ? (
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-xs text-slate-400 font-mono tracking-wide text-center md:text-left">
-              🛡️ **Host Power**: Review the flags. Opponents can veto incorrect or misspelled words. Once everyone is satisfied, click to lock in points.
+            <p className="text-xs text-slate-400 font-mono tracking-wide text-center md:text-left flex items-center gap-1.5">
+              <Crown className="w-3.5 h-3.5 text-amber-400" /> Scores above were graded by the AI
+              referee. Click to lock them in and move on.
             </p>
             <button
               onClick={() => {
@@ -296,7 +231,7 @@ export default function ReviewPhase({
           <div className="flex items-center justify-center gap-3 py-4 bg-slate-950/20 rounded-xl border border-slate-900/40 text-slate-400">
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#3b82f6]" />
             <span className="text-xs font-mono tracking-wider">
-              Waiting for host to finalize review and advance...
+              Waiting for host to finalize the round...
             </span>
           </div>
         )}

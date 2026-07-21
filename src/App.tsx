@@ -69,7 +69,7 @@ export default function App() {
       ) {
         sounds.letterCalled();
       }
-      // Transitioned to review
+      // Transitioned to review (AI has finished grading)
       else if (room.status === "review" && previousStatusRef.current !== "review") {
         sounds.submit();
       }
@@ -265,26 +265,7 @@ export default function App() {
     }
   };
 
-  // Player Action: Toggle a veto on another player's answer
-  const toggleVeto = async (
-    targetPlayerId: string,
-    field: "name" | "animal" | "place" | "thing"
-  ) => {
-    if (!roomId || !playerId) return;
-    try {
-      const res = await fetch(`/api/rooms/${roomId}/veto`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId, targetPlayerId, field }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-    } catch (err: any) {
-      console.error("Failed to toggle veto", err);
-    }
-  };
-
-  // Host Action: Commit scores and go to next round
+  // Host Action: Commit AI-graded scores and go to next round
   const finalizeReview = async () => {
     if (!roomId || !playerId) return;
     try {
@@ -400,10 +381,10 @@ export default function App() {
             >
               <div className="text-center flex flex-col gap-2">
                 <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-b from-white to-slate-400 bg-clip-text text-transparent">
-                  iCallOn
+                  Call ON.
                 </h1>
                 <p className="text-xs text-slate-400 max-w-xs mx-auto font-mono tracking-wide">
-                  Name, Animal, Place, Thinggame. Take turns calling a letter and speed writing starting words.
+                  The classic Name, Animal, Place, Thing party game. Take turns calling a letter and speed writing starting words.
                 </p>
               </div>
 
@@ -508,11 +489,29 @@ export default function App() {
                 />
               )}
 
+              {/* Brief AI-grading phase between writing and review. Kept purely as a
+                  loading state — the server flips straight to "review" once the AI
+                  referee finishes scoring every answer. */}
+              {room.status === "grading" && (
+                <motion.div
+                  key="grading"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="w-full max-w-md bg-black/60 backdrop-blur-md border border-[#1e293b]/80 shadow-2xl rounded-2xl p-8 flex flex-col items-center gap-4 text-center"
+                >
+                  <div className="w-10 h-10 border-2 border-[#3b82f6] border-t-transparent rounded-full animate-spin" />
+                  <h2 className="text-lg font-semibold text-white">AI referee is grading the round...</h2>
+                  <p className="text-xs text-slate-400 font-mono">
+                    Checking every answer against the letter "{room.currentLetter}" and Nigerian context.
+                  </p>
+                </motion.div>
+              )}
+
               {room.status === "review" && (
                 <ReviewPhase
                   room={room}
                   playerId={playerId!}
-                  onToggleVeto={toggleVeto}
                   onFinalizeReview={finalizeReview}
                 />
               )}

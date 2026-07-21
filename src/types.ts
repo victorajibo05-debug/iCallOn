@@ -1,3 +1,8 @@
+export interface AIVerdict {
+   valid: boolean;
+reason: string;
+ }
+
 export interface Player {
   id: string;
   name: string;
@@ -17,12 +22,12 @@ export interface RoundAnswers {
     place: number;
     thing: number;
   };
-  vetos: {
-    name: string[];  // playerIds who vetoed this name
-    animal: string[]; // playerIds who vetoed this animal
-    place: string[];  // playerIds who vetoed this place
-    thing: string[];  // playerIds who vetoed this thing
-  };
+aiVerdicts: {
+    name: AIVerdict;
+    animal: AIVerdict;
+     place: AIVerdict;
+    thing: AIVerdict;
+   } | null;
 }
 
 export type GameStatus = 'lobby' | 'calling' | 'writing' | 'review' | 'ended';

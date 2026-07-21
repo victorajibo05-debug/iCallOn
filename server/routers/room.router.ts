@@ -10,7 +10,6 @@ router.get("/rooms/:roomId/events", (req, res) => roomController.getEvents(req, 
 router.post("/rooms/:roomId/start", (req, res) => roomController.startGame(req, res));
 router.post("/rooms/:roomId/call-letter", (req, res) => roomController.callLetter(req, res));
 router.post("/rooms/:roomId/answers", (req, res) => roomController.submitAnswers(req, res));
-router.post("/rooms/:roomId/veto", (req, res) => roomController.toggleVeto(req, res));
 router.post("/rooms/:roomId/submit-review", (req, res) => roomController.finalizeReview(req, res));
 router.post("/rooms/:roomId/restart", (req, res) => roomController.restartGame(req, res));
 
