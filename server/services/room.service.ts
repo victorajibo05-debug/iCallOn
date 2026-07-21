@@ -247,7 +247,7 @@ export class RoomService {
 
     room.currentLetter = cleanLetter;
     room.status = "writing";
-    room.timerEndsAt = Date.now() + 35000;
+    room.timerEndsAt = Date.now() + 20000;
 
     room.players.forEach((p) => {
       room.answers[p.id] = emptyAnswers();
