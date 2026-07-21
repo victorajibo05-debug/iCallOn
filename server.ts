@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config({ path: "./server/.env" });
+
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
