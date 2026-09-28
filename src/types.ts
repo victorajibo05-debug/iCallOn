@@ -30,7 +30,7 @@ aiVerdicts: {
    } | null;
 }
 
-export type GameStatus = 'lobby' | 'calling' | 'writing' | 'review' | 'ended';
+export type GameStatus = 'lobby' | 'calling' | 'writing' | 'grading' | 'review' | 'ended';
 
 export interface RoomState {
   id: string;

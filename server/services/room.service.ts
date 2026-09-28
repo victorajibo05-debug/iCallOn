@@ -281,7 +281,7 @@ export class RoomService {
     const room = this.rooms.get(upperCode);
     if (!room || room.status !== "writing") return;
 
-    room.status = "review";
+    room.status = "grading";
     room.timerEndsAt = null;
 
     room.players.forEach((p) => {
@@ -303,7 +303,7 @@ export class RoomService {
 
     // The room may have been deleted or restarted while the AI call was in flight
     const stillLive = this.rooms.get(upperCode);
-    if (!stillLive || stillLive.status !== "review") return;
+    if (!stillLive || stillLive.status !== "grading") return;
 
     stillLive.players.forEach((p) => {
       const ans = stillLive.answers[p.id];
